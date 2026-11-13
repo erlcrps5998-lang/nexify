@@ -17,7 +17,8 @@ async function appActor(params:Ctx['params']){
  const user=discordId?await prisma.user.upsert({where:{discordId},update:{name:session?.user?.name||'Discord user',avatar:session?.user?.image},create:{discordId,name:session?.user?.name||'Discord user',avatar:session?.user?.image}}):null;
  const member=user?await prisma.membership.findUnique({where:{userId_communityId:{userId:user.id,communityId:id}}}):null;
  const manager=!!member&&await can(member,id,'applications.manage');
- return {community,user,member,manager};
+ const reviewer=!!member&&await can(member,id,'applications.review');
+ return {community,user,member,manager,reviewer};
 }
 function validQuestions(value:unknown):value is Question[]{
  if(!Array.isArray(value)||value.length>25||value.length<1)return false;
@@ -32,8 +33,8 @@ export async function GET(_req:Request,{params}:Ctx){
  try{
   const a=await appActor(params);
   if(!a.community)return NextResponse.json({error:'Community not found'},{status:404});
-  const forms=await prisma.applicationForm.findMany({where:{communityId:a.community.id,...(a.manager?{}:{isOpen:true})},orderBy:{createdAt:'desc'},select:{id:true,title:true,description:true,isOpen:true,questions:true,createdAt:true,_count:{select:{submissions:true}}}});
-  return NextResponse.json({communityName:a.community.name,manager:a.manager,authenticated:!!a.user,forms:forms.map(f=>({...f,count:a.manager?f._count.submissions:undefined,_count:undefined}))});
+  const forms=await prisma.applicationForm.findMany({where:{communityId:a.community.id,...((a.manager||a.reviewer)?{}:{isOpen:true})},orderBy:{createdAt:'desc'},select:{id:true,title:true,description:true,isOpen:true,questions:true,createdAt:true,_count:{select:{submissions:true}}}});
+  return NextResponse.json({communityName:a.community.name,manager:a.manager,reviewer:a.reviewer,authenticated:!!a.user,forms:forms.map(f=>({...f,count:a.reviewer?f._count.submissions:undefined,_count:undefined}))});
  }catch{return NextResponse.json({error:'Unable to load applications'},{status:503});}
 }
 export async function POST(req:Request,{params}:Ctx){
