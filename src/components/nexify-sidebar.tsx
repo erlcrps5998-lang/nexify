@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import {usePathname} from 'next/navigation';
 import {useEffect,useState} from 'react';
-import {LayoutDashboard,Users,Settings,ShieldCheck,UserRoundX,CalendarDays,ClipboardList,Clock3,RadioTower,ChevronDown,House,UserCog} from 'lucide-react';
+import {LayoutDashboard,Users,Settings,ShieldCheck,UserRoundX,CalendarDays,ClipboardList,Clock3,RadioTower,ChevronDown,House,UserCog,KeyRound} from 'lucide-react';
 
 type Community={id:string;name:string;role:string};
 export function NexifySidebar({communityId}:{communityId?:string}){
@@ -23,6 +23,7 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   {label:'Community Settings',href:base?base+'#community-settings':null,icon:Settings},
   {label:'Members & Roles',href:base?base+'#community-members':null,icon:Users},
   {label:'Staff Directory',href:staff?staff+'#staff-directory':null,icon:UserCog},
+  {label:'Advanced Permissions',href:base?base+'/ranks':null,icon:KeyRound},
   {label:'Suspensions',href:staff?staff+'#staff-directory':null,icon:UserRoundX},
   {label:'LOA Requests',href:staff?staff+'#loa-requests':null,icon:CalendarDays},
   {label:'Shift Management',href:base?base+'/shifts':null,icon:Clock3},
@@ -38,6 +39,7 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   if(label==='Community Settings'||label==='Members & Roles')return pathname===base;
   if(label==='Shift Management')return pathname===base+'/shifts';
   if(label==='Moderation')return pathname===base+'/moderation';
+  if(label==='Advanced Permissions')return pathname===base+'/ranks';
   if(label==='Applications')return pathname===base+'/applications';
   if(label==='ER:LC Servers')return pathname===base+'/erlc';
   if(label==='Server Controls')return pathname===base+'/erlc/controls';
