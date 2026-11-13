@@ -2,6 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
+import {can} from '@/lib/permissions';
 type Ctx={params:Promise<{id:string}>};
 type Role='OWNER'|'ADMIN'|'MODERATOR'|'STAFF'|'MEMBER';
 const roles:Role[]=['OWNER','ADMIN','MODERATOR','STAFF','MEMBER'];
@@ -28,7 +29,7 @@ export async function GET(_req:Request,{params}:Ctx){
 export async function POST(req:Request,{params}:Ctx){
  try{
   const c=await auth(params);
-  if(!c||!['OWNER','ADMIN'].includes(c.member.role)||(c.member.suspendedUntil&&c.member.suspendedUntil>new Date()))return NextResponse.json({error:'Permission denied'},{status:403});
+  if(!c||!(await can(c.member,c.id,'members.manage')))return NextResponse.json({error:'Permission denied'},{status:403});
   const {discordId,role}=await req.json();
   if(typeof discordId!=='string'||!/^[0-9]{17,20}$/.test(discordId))return NextResponse.json({error:'Enter a valid Discord user ID'},{status:400});
   if(!roles.includes(role)||!allowed(c.member.role,role))return NextResponse.json({error:'Cannot assign that role'},{status:403});
@@ -42,7 +43,7 @@ export async function POST(req:Request,{params}:Ctx){
 export async function PATCH(req:Request,{params}:Ctx){
  try{
   const c=await auth(params);
-  if(!c||!['OWNER','ADMIN'].includes(c.member.role)||(c.member.suspendedUntil&&c.member.suspendedUntil>new Date()))return NextResponse.json({error:'Permission denied'},{status:403});
+  if(!c||!(await can(c.member,c.id,'members.manage')))return NextResponse.json({error:'Permission denied'},{status:403});
   const {membershipId,role}=await req.json();
   if(typeof membershipId!=='string'||!roles.includes(role)||!allowed(c.member.role,role))return NextResponse.json({error:'Invalid role or membership'},{status:400});
   const target=await prisma.membership.findFirst({where:{id:membershipId,communityId:c.id}});
@@ -54,7 +55,7 @@ export async function PATCH(req:Request,{params}:Ctx){
 export async function DELETE(req:Request,{params}:Ctx){
  try{
   const c=await auth(params);
-  if(!c||!['OWNER','ADMIN'].includes(c.member.role)||(c.member.suspendedUntil&&c.member.suspendedUntil>new Date()))return NextResponse.json({error:'Permission denied'},{status:403});
+  if(!c||!(await can(c.member,c.id,'members.manage')))return NextResponse.json({error:'Permission denied'},{status:403});
   const {membershipId}=await req.json();
   if(typeof membershipId!=='string')return NextResponse.json({error:'Invalid member'},{status:400});
   const target=await prisma.membership.findFirst({where:{id:membershipId,communityId:c.id}});
