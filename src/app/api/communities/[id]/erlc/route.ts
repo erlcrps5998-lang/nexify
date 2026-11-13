@@ -2,6 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
+import {can} from '@/lib/permissions';
 import {decryptServerKey,encryptServerKey,ErlcApiError,fetchErlcServer} from '@/lib/erlc';
 
 export const runtime='nodejs';
@@ -16,7 +17,7 @@ async function actor(params:Ctx['params']){
  const membership=await prisma.membership.findUnique({where:{userId_communityId:{userId:user.id,communityId:id}}});
  if(!membership)return null;
  const suspended=!!membership.suspendedUntil&&membership.suspendedUntil>new Date();
- return {id,role:membership.role,suspended,manager:!suspended&&['OWNER','ADMIN'].includes(membership.role)};
+ return {id,role:membership.role,suspended,viewer:!suspended&&await can(membership,id,'erlc.view'),manager:!suspended&&await can(membership,id,'erlc.connect')};
 }
 const permitted=(role:string)=>['OWNER','ADMIN','MODERATOR','STAFF'].includes(role);
 const error=(e:unknown,defaultMessage:string)=>{
@@ -26,7 +27,7 @@ const error=(e:unknown,defaultMessage:string)=>{
 export async function GET(_req:Request,{params}:Ctx){
  try{
   const a=await actor(params);
-  if(!a||!permitted(a.role)||a.suspended)return NextResponse.json({error:'Active community staff membership required'},{status:403});
+  if(!a||!a.viewer||a.suspended)return NextResponse.json({error:'Active community staff membership required'},{status:403});
   const connection=await prisma.erlcConnection.findUnique({where:{communityId:a.id}});
   if(!connection)return NextResponse.json({connected:false,manager:a.manager});
   let live;
