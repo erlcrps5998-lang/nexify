@@ -7,7 +7,7 @@ import {Clock3,Play,Square,Activity,Trophy,Target,RefreshCw} from 'lucide-react'
 type ActivityEntry={id:string;category:string;note:string;createdAt:string};
 type Shift={id:string;memberName:string;mine:boolean;startedAt:string;endedAt:string|null;activities:ActivityEntry[]};
 type Stat={membershipId:string;name:string;avatar:string|null;role:string;minutes:number;active:boolean;activityCount:number};
-type Data={communityName:string;quotaMinutes:number;weekStarts:string;myRole:string;myActiveShiftId:string|null;mySuspended:boolean;leaderboard:Stat[];history:Shift[]};
+type Data={communityName:string;quotaMinutes:number;weekStarts:string;myRole:string;permissions:string[];myActiveShiftId:string|null;mySuspended:boolean;leaderboard:Stat[];history:Shift[]};
 const fmt=(mins:number)=>mins>=60?Math.floor(mins/60)+'h '+(mins%60)+'m':mins+'m';
 const dt=(s:string)=>new Date(s).toLocaleString();
 async function parse(res:Response){const json=await res.json();if(!res.ok)throw Error(json.error||'Request failed');return json;}
@@ -27,7 +27,8 @@ export default function ShiftsPage(){
    if('action'in payload&&payload.action==='activity')setNote('');
   }catch(e){setError(e instanceof Error?e.message:'Request failed');}finally{setBusy(false);}
  }
- const manager=data?.myRole==='OWNER'||data?.myRole==='ADMIN';
+ const manager=!!data?.permissions.includes('shifts.quota');
+ const canShift=!!data?.permissions.includes('shifts.manage');
  const me=data?.leaderboard.find(s=>s.role&&data.history.some(h=>h.mine&&h.memberName===s.name));
  const active=data?.history.find(s=>s.id===data.myActiveShiftId);
  const elapsed=active?Math.floor(Math.max(0,now-new Date(active.startedAt).getTime())/60000):0;
@@ -45,11 +46,11 @@ export default function ShiftsPage(){
    <div className="shift-grid">
     <section className="panel cm-panel"><h2><Play size={18}/> Your shift</h2><p>Track your time while on duty. Times are recorded automatically.</p>
      <div className="shift-actionbox"><span className={data.myActiveShiftId?'shift-light on':'shift-light'}/><strong>{data.myActiveShiftId?'You are on duty':'You are off duty'}</strong>{active&&<small>Started {dt(active.startedAt)} · {fmt(elapsed)}</small>}</div>
-     <button className={'cm-button shift-start'+(data.myActiveShiftId?' shift-stop':'')} disabled={busy||data.mySuspended} onClick={()=>act({action:data.myActiveShiftId?'clockOut':'clockIn'},data.myActiveShiftId?'Shift ended and saved.':'You are clocked in.')}>{data.myActiveShiftId?<><Square size={15}/> Clock Out</>:<><Play size={15}/> Clock In</>}</button>
+     <button className={'cm-button shift-start'+(data.myActiveShiftId?' shift-stop':'')} disabled={busy||data.mySuspended||!canShift} onClick={()=>act({action:data.myActiveShiftId?'clockOut':'clockIn'},data.myActiveShiftId?'Shift ended and saved.':'You are clocked in.')}>{data.myActiveShiftId?<><Square size={15}/> Clock Out</>:<><Play size={15}/> Clock In</>}</button>
      <h3><Activity size={17}/> Record activity</h3><p>Log what you did during your current shift. Activity notes are manual, not automatically pulled from ER:LC.</p>
      <label htmlFor="activity-type">Category</label><select id="activity-type" value={category} onChange={e=>setCategory(e.target.value)} disabled={!data.myActiveShiftId||busy}>{['Patrol','Training','Moderation','Support','Other'].map(c=><option key={c}>{c}</option>)}</select>
      <label htmlFor="activity-note">Activity note</label><textarea id="activity-note" rows={3} value={note} maxLength={300} onChange={e=>setNote(e.target.value)} placeholder="What did you work on?" disabled={!data.myActiveShiftId||busy}/>
-     <button className="cm-button" disabled={busy||!data.myActiveShiftId||note.trim().length<3||data.mySuspended} onClick={()=>act({action:'activity',category,note},'Activity recorded.')}>Add activity</button>
+     <button className="cm-button" disabled={busy||!data.myActiveShiftId||note.trim().length<3||data.mySuspended||!canShift} onClick={()=>act({action:'activity',category,note},'Activity recorded.')}>Add activity</button>
     </section>
     <section className="panel cm-panel"><h2><Trophy size={18}/> Weekly leaderboard</h2><p>Ranked by time on duty since Monday (UTC). Active shifts count toward totals.</p>
      <div className="shift-leaders">{data.leaderboard.map((s,i)=><div className="shift-leader" key={s.membershipId}><span className="shift-rank">#{i+1}</span><div className="shift-person"><strong>{s.name}</strong><small>{s.role}{s.active?' · On Duty':''}</small></div><div className="shift-total"><strong>{fmt(s.minutes)}</strong><small>{quota>0?Math.min(100,Math.floor(s.minutes/quota*100))+'% quota':'No quota'}</small></div><div className="shift-progress"><div style={{width:quota>0?Math.min(100,s.minutes/quota*100)+'%':'0%'}}/></div></div>)}</div>
