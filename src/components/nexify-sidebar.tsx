@@ -28,7 +28,8 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   {label:'Shift Management',href:base?base+'/shifts':null,icon:Clock3},
   {label:'Moderation',href:base?base+'/moderation':null,icon:ShieldCheck},
   {label:'Applications',href:base?base+'/applications':null,icon:ClipboardList},
-  {label:'ER:LC Servers',href:base?base+'/erlc':null,icon:RadioTower}
+  {label:'ER:LC Servers',href:base?base+'/erlc':null,icon:RadioTower},
+  {label:'Server Controls',href:base?base+'/erlc/controls':null,icon:ShieldCheck}
  ];
  const coming: {label:string;icon:typeof RadioTower}[]=[];
  function active(href:string|null,label:string){
@@ -39,6 +40,7 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   if(label==='Moderation')return pathname===base+'/moderation';
   if(label==='Applications')return pathname===base+'/applications';
   if(label==='ER:LC Servers')return pathname===base+'/erlc';
+  if(label==='Server Controls')return pathname===base+'/erlc/controls';
   return pathname===staff;
  }
  return <><button className="sidebar-mobile-toggle" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-controls="nexify-navigation">☰ Menu <ChevronDown size={14}/></button>
