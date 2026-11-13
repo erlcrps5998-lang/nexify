@@ -13,7 +13,7 @@ async function appActor(params:Ctx['params']){
  const {id}=await params;
  const community=await prisma.community.findUnique({where:{id},select:{id:true,name:true}});
  if(!community)return {community:null,user:null,member:null,manager:false};
- const user=discordId?await prisma.user.findUnique({where:{discordId}}):null;
+ const user=discordId?await prisma.user.upsert({where:{discordId},update:{name:session?.user?.name||'Discord user',avatar:session?.user?.image},create:{discordId,name:session?.user?.name||'Discord user',avatar:session?.user?.image}}):null;
  const member=user?await prisma.membership.findUnique({where:{userId_communityId:{userId:user.id,communityId:id}}}):null;
  const manager=!!member&&['OWNER','ADMIN'].includes(member.role)&&(!member.suspendedUntil||member.suspendedUntil<=new Date());
  return {community,user,member,manager};
