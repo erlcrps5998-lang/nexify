@@ -2,7 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
-import {can} from '@/lib/permissions';
+import {can,permissionsFor} from '@/lib/permissions';
 type Context={params:Promise<{id:string}>};
 async function actor(params:Context['params']){
  const session=await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export async function GET(_req:Request,{params}:Context){
   const a=await actor(params);
   if(!a)return NextResponse.json({error:'Access denied'},{status:403});
   const members=await prisma.membership.findMany({where:{communityId:a.id,role:{not:'MEMBER'}},include:{user:{select:{name:true,discordId:true,avatar:true}}},orderBy:{user:{name:'asc'}}});
-  return NextResponse.json({myMembershipId:a.membership.id,myRole:a.membership.role,mySuspended:!!a.membership.suspendedUntil&&a.membership.suspendedUntil>new Date(),staff:members.map(m=>({id:m.id,name:m.user.name,discordId:m.user.discordId,avatar:m.user.avatar,role:m.role,title:m.staffTitle||'',suspendedUntil:m.suspendedUntil?.toISOString()||null,suspensionReason:m.suspensionReason||'',rankId:m.rankId}))});
+  return NextResponse.json({myMembershipId:a.membership.id,myRole:a.membership.role,permissions:await permissionsFor(a.membership,a.id),mySuspended:!!a.membership.suspendedUntil&&a.membership.suspendedUntil>new Date(),staff:members.map(m=>({id:m.id,name:m.user.name,discordId:m.user.discordId,avatar:m.user.avatar,role:m.role,title:m.staffTitle||'',suspendedUntil:m.suspendedUntil?.toISOString()||null,suspensionReason:m.suspensionReason||'',rankId:m.rankId}))});
  }catch{return NextResponse.json({error:'Unable to load staff'},{status:503});}
 }
 export async function PATCH(req:Request,{params}:Context){
