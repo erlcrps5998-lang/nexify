@@ -12,14 +12,14 @@ async function parse(r:Response){const v=await r.json();if(!r.ok)throw Error(v.e
 export default function ErlcPage(){
  const {id}=useParams<{id:string}>();
  const [data,setData]=useState<Connection|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false);
- const [serverKey,setServerKey]=useState(''),[query,setQuery]=useState(''),[team,setTeam]=useState('ALL');
+ const [serverKey,setServerKey]=useState(''),[replaceOpen,setReplaceOpen]=useState(false),[query,setQuery]=useState(''),[team,setTeam]=useState('ALL');
  const [error,setError]=useState(''),[notice,setNotice]=useState('');
  const url='/api/communities/'+id+'/erlc';
  async function load(){const v=await fetch(url,{cache:'no-store'}).then(parse) as Connection;setData(v);}
  useEffect(()=>{if(!id)return;load().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[id]);
  async function connect(){
   setBusy(true);setError('');setNotice('');
-  try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serverKey})}).then(parse);setServerKey('');await load();setNotice('Connected to '+res.serverName+'.');}
+  try{const res=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serverKey})}).then(parse);setServerKey('');setReplaceOpen(false);await load();setNotice('Connected to '+res.serverName+'.');}
   catch(e){setError(e instanceof Error?e.message:'Could not connect');}finally{setBusy(false);}
  }
  async function disconnect(){
@@ -56,7 +56,7 @@ export default function ErlcPage(){
      {!live?<p>Live data cannot be displayed right now. Check the server key or refresh later.</p>:<div className="erlc-playerlist">{filtered.map((p,i)=><div className="erlc-player" key={p.userId||p.username+'-'+i}><div className="erlc-avatar">{p.username.slice(0,1).toUpperCase()}</div><div className="erlc-playername"><strong>{p.username}</strong><small>{p.userId?'Roblox ID: '+p.userId:'Roblox ID unavailable'}</small></div><div className="erlc-playerdetails"><strong>{p.team}</strong><small>{p.permission}{p.callsign?' · '+p.callsign:''}</small></div></div>)}</div>}
      {live&&filtered.length===0&&<p>{players.length?'No players match your search.':'No players currently reported by the API.'}</p>}
     </section>
-    <section className="panel erlc-footnote"><h2>Connection management</h2><p>The server key remains encrypted in Nexify's database. Only active owners and admins can connect, replace, or disconnect a key. Nexify currently reads server information and player lists; it does not run in-game commands.</p>{data.manager&&<button className="staff-mutedbtn" disabled={busy} onClick={()=>{if(window.confirm('Replace the existing server connection? This will disconnect the current key.'))disconnect();}}>Change connection</button>}</section>
+    <section className="panel erlc-footnote"><h2>Connection management</h2><p>The server key remains encrypted in Nexify's database. Only active owners and admins can connect, replace, or disconnect a key. Nexify currently reads server information and player lists; it does not run in-game commands.</p>{data.manager&&<><button className="staff-mutedbtn" disabled={busy} onClick={()=>setReplaceOpen(v=>!v)}>{replaceOpen?'Cancel key change':'Replace server key'}</button>{replaceOpen&&<div className="erlc-replace"><label htmlFor="erlc-new-key">New Server Key</label><input id="erlc-new-key" type="password" autoComplete="off" spellCheck={false} value={serverKey} onChange={e=>setServerKey(e.target.value)} placeholder="Paste the replacement key"/><button className="cm-button" disabled={busy||serverKey.trim().length<8} onClick={connect}>{busy?'Validating…':'Validate and replace connection'}</button><small>Your current connection remains active if the new key fails validation.</small></div>}</>}</section>
    </>}
   </>}
   {notice&&<div className="cm-alert" role="status">{notice}</div>}{error&&data&&<div className="cm-alert error" role="alert">{error}</div>}
