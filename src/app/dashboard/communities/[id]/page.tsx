@@ -1,5 +1,5 @@
-import {NexifySidebar} from '@/components/nexify-sidebar';
 'use client';
+import {NexifySidebar} from '@/components/nexify-sidebar';
 import Link from 'next/link';
 import {useParams} from 'next/navigation';
 import {useEffect,useState} from 'react';
