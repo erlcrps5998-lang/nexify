@@ -4,7 +4,7 @@ import Link from 'next/link';
 import {useParams} from 'next/navigation';
 import {useEffect,useState} from 'react';
 type Role='OWNER'|'ADMIN'|'MODERATOR'|'STAFF'|'MEMBER';
-type Community={id:string;name:string;slug:string;description:string|null;logoUrl:string|null;role:Role};
+type Community={id:string;name:string;slug:string;description:string|null;logoUrl:string|null;role:Role;permissions:string[]};
 type Member={id:string;role:Role;user:{id:string;name:string;discordId:string;avatar:string|null}};
 const roles:Role[]=['ADMIN','MODERATOR','STAFF','MEMBER'];
 async function parse(res:Response){const data=await res.json();if(!res.ok)throw Error(data.error||'Request failed');return data;}
@@ -21,8 +21,10 @@ export default function CommunitySettings(){
    .then(([c,m]:[Community,Member[]])=>{setCommunity(c);setMembers(m);setName(c.name);setDescription(c.description||'');setLogoUrl(c.logoUrl||'');})
    .catch(e=>setError(e.message)).finally(()=>setLoading(false));
  },[id]);
- const editor=community?.role==='OWNER'||community?.role==='ADMIN';
- const selectable=community?.role==='OWNER'?roles:roles.filter(r=>r!=='ADMIN');
+ const editor=!!community?.permissions.includes('community.edit');
+ const memberManager=!!community?.permissions.includes('members.manage');
+ const rankLevel:Record<Role,number>={OWNER:5,ADMIN:4,MODERATOR:3,STAFF:2,MEMBER:1};
+ const selectable=roles.filter(r=>community&&rankLevel[r]<=rankLevel[community.role]&&(community.role!=='ADMIN'||r!=='ADMIN'));
  async function save(){
   setError('');setNotice('');setBusy(true);
   try{const c=await fetch('/api/communities/'+id,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({name,description,logoUrl})}).then(parse);setCommunity(c);setNotice('Community settings saved.');}
@@ -33,21 +35,21 @@ export default function CommunitySettings(){
   try{const m=await fetch('/api/communities/'+id+'/members',{method,headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(parse);setMembers(m);setDiscordId('');setNotice(method==='POST'?'Member added.':method==='PATCH'?'Role updated.':'Member removed.');}
   catch(e){setError(e instanceof Error?e.message:'Unable to update member');}finally{setBusy(false);}
  }
- const canManage=(m:Member)=>community?.role==='OWNER'?m.role!=='OWNER':community?.role==='ADMIN'&&['MODERATOR','STAFF','MEMBER'].includes(m.role);
+ const canManage=(m:Member)=>Boolean(community&&memberManager&&m.role!=='OWNER'&&rankLevel[m.role]<=rankLevel[community.role]&&(community.role!=='ADMIN'||m.role!=='ADMIN')&&m.user.discordId!==undefined&&!(community.role===m.role&&community.role==='MEMBER'));
  return <div className="app"><NexifySidebar communityId={id}/><main className="cm-page cm-content"><div className="cm-container">
   <Link className="cm-back" href="/dashboard">← Back to dashboard</Link>
   {loading?<p>Loading community…</p>:!community?<div className="panel"><h2>Community unavailable</h2><p>{error||'You do not have access.'}</p><Link href="/dashboard">Return to dashboard</Link></div>:<>
    <header className="cm-hero"><div className="cm-logo">{community.logoUrl?<img alt="Community logo" src={community.logoUrl}/>:community.name.charAt(0).toUpperCase()}</div><div><span className="muted">COMMUNITY MANAGEMENT</span><h1>{community.name}</h1><p>{community.slug} · Your role: {community.role}</p></div></header>
-   <div className="staff-shortcuts"><Link className="cm-button" href={"/dashboard/communities/"+id+"/staff"}>♙ Open Staff Management →</Link><span className="muted">Staff directory · Suspensions · LOA approvals</span></div><div className="cm-grid">
+   <div className="staff-shortcuts"><Link className="staff-mutedbtn" href={"/dashboard/communities/"+id+"/ranks"}>⚙ Advanced Permissions</Link><Link className="cm-button" href={"/dashboard/communities/"+id+"/staff"}>♙ Open Staff Management →</Link><span className="muted">Staff directory · Suspensions · LOA approvals</span></div><div className="cm-grid">
     <section id="community-settings" className="panel cm-panel"><h2>Community settings</h2><p>Edit your community profile and branding.</p>
      <label htmlFor="cm-name">Community name</label><input id="cm-name" value={name} maxLength={60} onChange={e=>setName(e.target.value)} disabled={!editor||busy}/>
      <label htmlFor="cm-desc">Description</label><textarea id="cm-desc" rows={5} value={description} maxLength={1000} onChange={e=>setDescription(e.target.value)} placeholder="Describe your ER:LC community" disabled={!editor||busy}/>
      <label htmlFor="cm-logo">Logo URL</label><input id="cm-logo" type="url" value={logoUrl} maxLength={500} onChange={e=>setLogoUrl(e.target.value)} placeholder="https://example.com/logo.png" disabled={!editor||busy}/>
      <small className="muted">Paste a public HTTPS image link. Direct file uploads are not included yet.</small>
-     {editor?<button className="cm-button" disabled={busy||name.trim().length<3} onClick={save}>{busy?'Saving…':'Save settings'}</button>:<p>Only owners and admins can change settings.</p>}
+     {editor?<button className="cm-button" disabled={busy||name.trim().length<3} onClick={save}>{busy?'Saving…':'Save settings'}</button>:<p>Your assigned rank does not allow community settings changes.</p>}
     </section>
     <section id="community-members" className="panel cm-panel"><h2>Members <span className="pill">{members.length}</span></h2><p>View members, assign roles, and manage access.</p>
-     {editor&&<div className="cm-invite"><label htmlFor="cm-discord">Add member by Discord User ID</label><input id="cm-discord" value={discordId} maxLength={20} onChange={e=>setDiscordId(e.target.value.trim())} placeholder="Discord user ID" disabled={busy}/>
+     {memberManager&&<div className="cm-invite"><label htmlFor="cm-discord">Add member by Discord User ID</label><input id="cm-discord" value={discordId} maxLength={20} onChange={e=>setDiscordId(e.target.value.trim())} placeholder="Discord user ID" disabled={busy}/>
       <div className="cm-actions"><select aria-label="New member role" value={newRole} onChange={e=>setNewRole(e.target.value as Role)} disabled={busy}>{selectable.map(r=><option key={r} value={r}>{r}</option>)}</select><button className="cm-button" disabled={busy||!/^[0-9]{17,20}$/.test(discordId)} onClick={()=>membersAction('POST',{discordId,role:newRole})}>Add member</button></div>
       <small className="muted">Use Discord Developer Mode to copy a user's ID. They can access the community when they sign in.</small>
      </div>}
