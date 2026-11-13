@@ -2,7 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
-import {can} from '@/lib/permissions';
+import {can,permissionsFor} from '@/lib/permissions';
 type Ctx={params:Promise<{id:string}>};
 async function auth(id:string){
  const session=await getServerSession(authOptions);
@@ -19,7 +19,7 @@ export async function GET(_req:Request,{params}:Ctx){
   if(!member)return NextResponse.json({error:'Community unavailable or access denied'},{status:403});
   const c=await prisma.community.findUnique({where:{id},select:{id:true,name:true,slug:true,description:true,logoUrl:true}});
   if(!c)return NextResponse.json({error:'Community not found'},{status:404});
-  return NextResponse.json({...c,role:member.role});
+  return NextResponse.json({...c,role:member.role,permissions:await permissionsFor(member,id)});
  }catch{return NextResponse.json({error:'Unable to load community'},{status:503});}
 }
 export async function PATCH(req:Request,{params}:Ctx){
