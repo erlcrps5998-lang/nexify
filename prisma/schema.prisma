@@ -61,7 +61,9 @@ model ModerationLog {
   communityId    String
   actorId        String
   targetRobloxId String
+  targetRobloxName String?
   action         String
+  actorName      String?
   reason         String?
   createdAt      DateTime  @default(now())
   community      Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
