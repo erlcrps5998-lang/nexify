@@ -1,0 +1,1 @@
+import type { Metadata } from "next"; import "./styles.css"; export const metadata: Metadata = {title:"Nexify — ER:LC Community Management",description:"Manage your ER:LC communities."}; export default function RootLayout({children}:{children:React.ReactNode}) {return <html lang="en"><body>{children}</body></html>}
