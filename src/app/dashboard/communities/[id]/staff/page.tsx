@@ -1,3 +1,4 @@
+import {NexifySidebar} from '@/components/nexify-sidebar';
 'use client';
 import Link from 'next/link';
 import {useParams} from 'next/navigation';
@@ -46,12 +47,12 @@ export default function StaffPage(){
    setLeaves(data);setSuccess('Leave request '+status.toLowerCase()+'.');
   }catch(e){setError(e instanceof Error?e.message:'Could not update request.');}finally{setBusy(false);}
  }
- return <main className="cm-page"><div className="cm-container">
+ return <div className="app"><NexifySidebar communityId={id}/><main className="cm-page cm-content"><div className="cm-container">
   <Link className="cm-back" href={'/dashboard/communities/'+id}>← Back to community</Link>
   <header className="cm-hero"><div className="cm-logo">♙</div><div><span className="muted">NEXIFY / COMMUNITY STAFF</span><h1>Staff Management</h1><p>Directory, titles, suspensions, permissions and leave requests</p></div></header>
   {loading?<div className="panel"><p>Loading staff records…</p></div>:!info?<div className="panel"><h2>Staff not available</h2><p>{error||'You must belong to this community to continue.'}</p></div>:<>
    <div className="staff-stats"><div className="stat"><span className="muted">STAFF MEMBERS</span><div className="statnum">{info.staff.length}</div></div><div className="stat"><span className="muted">ACTIVE</span><div className="statnum">{info.staff.filter(m=>!m.suspendedUntil||new Date(m.suspendedUntil)<=new Date()).length}</div></div><div className="stat"><span className="muted">SUSPENDED</span><div className="statnum">{info.staff.filter(m=>m.suspendedUntil&&new Date(m.suspendedUntil)>new Date()).length}</div></div><div className="stat"><span className="muted">PENDING LOAS</span><div className="statnum">{leaves.filter(l=>l.status==='PENDING').length}</div></div></div>
-   <section className="panel staff-panel"><div className="panelhead"><div><h2>Staff directory</h2><p>Roles are assigned in Community Management. Owners can manage admins; admins can manage moderators and staff.</p></div><span className="pill">{info.myRole}</span></div>
+   <section id="staff-directory" className="panel staff-panel"><div className="panelhead"><div><h2>Staff directory</h2><p>Roles are assigned in Community Management. Owners can manage admins; admins can manage moderators and staff.</p></div><span className="pill">{info.myRole}</span></div>
     <div className="staff-rows">{info.staff.map(m=><div className="staff-entry" key={m.id}>
      <div className="staff-entry-top"><div className="cm-memberavatar">{m.avatar?<img src={m.avatar} alt=""/>:m.name.slice(0,1)}</div><div className="staff-entry-name"><strong>{m.name}</strong><small>{m.title||m.discordId}</small></div><span className="pill">{m.role}</span><span className={m.suspendedUntil&&new Date(m.suspendedUntil)>new Date()?'staff-state suspended':'staff-state'}>{m.suspendedUntil&&new Date(m.suspendedUntil)>new Date()?'Suspended':'Active'}</span>{canManage(m)&&<button className="staff-mutedbtn" disabled={busy} onClick={()=>{setEditing(editing===m.id?null:m.id);setTitle(m.title);setUntil(m.suspendedUntil&&new Date(m.suspendedUntil)>new Date()?dateOnly(m.suspendedUntil):'');setReason(m.suspensionReason);}}> {editing===m.id?'Close':'Manage'} </button>}</div>
      {m.suspendedUntil&&new Date(m.suspendedUntil)>new Date()&&<p className="staff-note">Suspended until {new Date(m.suspendedUntil).toLocaleDateString()} {m.suspensionReason?'· '+m.suspensionReason:''}</p>}
@@ -59,7 +60,7 @@ export default function StaffPage(){
     </div>)}</div>
     {!info.staff.length&&<p>No staff yet. Add members and assign staff ranks in Community Management.</p>}
    </section>
-   <div className="staff-split">
+   <div id="loa-requests" className="staff-split">
     <section className="panel cm-panel"><h2>Request leave of absence</h2><p>Submit an LOA for a manager to review. Requests can cover up to 90 days.</p>
      {info.myRole==='MEMBER'?<p>Staff access is required to request leave.</p>:<><label htmlFor="leave-start">Start date</label><input id="leave-start" type="date" min={today} value={start} onChange={e=>setStart(e.target.value)}/><label htmlFor="leave-end">End date</label><input id="leave-end" type="date" min={start||today} value={end} onChange={e=>setEnd(e.target.value)}/><label htmlFor="leave-reason">Reason</label><textarea id="leave-reason" rows={4} maxLength={500} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} placeholder="Explain the time off you are requesting"/><button className="cm-button" disabled={busy||!start||!end||leaveReason.trim().length<5} onClick={requestLeave}>Submit LOA request</button></>}
     </section>
@@ -73,5 +74,5 @@ export default function StaffPage(){
   </>}
   {success&&<div className="cm-alert" role="status">{success}</div>}
   {error&&info&&<div className="cm-alert error" role="alert">{error}</div>}
- </div></main>;
+ </div></main></div>;
 }
