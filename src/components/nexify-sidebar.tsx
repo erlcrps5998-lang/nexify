@@ -24,10 +24,10 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   {label:'Members & Roles',href:base?base+'#community-members':null,icon:Users},
   {label:'Staff Directory',href:staff?staff+'#staff-directory':null,icon:UserCog},
   {label:'Suspensions',href:staff?staff+'#staff-directory':null,icon:UserRoundX},
-  {label:'LOA Requests',href:staff?staff+'#loa-requests':null,icon:CalendarDays}
+  {label:'LOA Requests',href:staff?staff+'#loa-requests':null,icon:CalendarDays},
+  {label:'Shift Management',href:base?base+'/shifts':null,icon:Clock3}
  ];
  const coming=[
-  {label:'Shift Management',icon:Clock3},
   {label:'Moderation',icon:ShieldCheck},
   {label:'Applications',icon:ClipboardList},
   {label:'ER:LC Servers',icon:RadioTower}
@@ -36,6 +36,7 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   if(!href)return false;
   if(label==='Overview')return pathname==='/dashboard';
   if(label==='Community Settings'||label==='Members & Roles')return pathname===base;
+  if(label==='Shift Management')return pathname===base+'/shifts';
   return pathname===staff;
  }
  return <><button className="sidebar-mobile-toggle" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-controls="nexify-navigation">☰ Menu <ChevronDown size={14}/></button>
