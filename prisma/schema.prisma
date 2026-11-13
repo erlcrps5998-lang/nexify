@@ -42,6 +42,7 @@ model Community {
   applicationForms ApplicationForm[]
   erlcConnection ErlcConnection?
   erlcCommandLogs ErlcCommandLog[]
+  staffRanks StaffRank[]
 }
 
 model Membership {
@@ -50,6 +51,8 @@ model Membership {
   communityId String
   role        CommunityRole @default(MEMBER)
   staffTitle  String?
+  rankId String?
+  rank StaffRank? @relation(fields: [rankId], references: [id], onDelete: SetNull)
   suspendedUntil DateTime?
   suspensionReason String?
   leaveRequests LeaveRequest[]
@@ -187,4 +190,20 @@ model ErlcCommandLog {
 
   @@index([communityId, createdAt])
   @@index([actorId, createdAt])
+}
+
+model StaffRank {
+ id String @id @default(cuid())
+ communityId String
+ community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+ name String
+ color String @default("#6489ff")
+ priority Int @default(0)
+ permissions Json
+ members Membership[]
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+
+ @@unique([communityId,name])
+ @@index([communityId,priority])
 }
