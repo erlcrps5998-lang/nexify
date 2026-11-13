@@ -40,6 +40,7 @@ model Community {
   members        Membership[]
   moderationLogs ModerationLog[]
   applicationForms ApplicationForm[]
+  erlcConnection ErlcConnection?
 }
 
 model Membership {
@@ -156,4 +157,14 @@ model ApplicationSubmission {
 
   @@unique([formId, applicantId])
   @@index([formId, submittedAt])
+}
+
+model ErlcConnection {
+  id String @id @default(cuid())
+  communityId String @unique
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  encryptedServerKey String
+  serverName String
+  connectedAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
