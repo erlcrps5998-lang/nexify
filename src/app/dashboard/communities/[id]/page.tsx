@@ -37,7 +37,7 @@ export default function CommunitySettings(){
   <Link className="cm-back" href="/dashboard">← Back to dashboard</Link>
   {loading?<p>Loading community…</p>:!community?<div className="panel"><h2>Community unavailable</h2><p>{error||'You do not have access.'}</p><Link href="/dashboard">Return to dashboard</Link></div>:<>
    <header className="cm-hero"><div className="cm-logo">{community.logoUrl?<img alt="Community logo" src={community.logoUrl}/>:community.name.charAt(0).toUpperCase()}</div><div><span className="muted">COMMUNITY MANAGEMENT</span><h1>{community.name}</h1><p>{community.slug} · Your role: {community.role}</p></div></header>
-   <div className="cm-grid">
+   <div className="staff-shortcuts"><Link className="cm-button" href={"/dashboard/communities/"+id+"/staff"}>♙ Open Staff Management →</Link><span className="muted">Staff directory · Suspensions · LOA approvals</span></div><div className="cm-grid">
     <section className="panel cm-panel"><h2>Community settings</h2><p>Edit your community profile and branding.</p>
      <label htmlFor="cm-name">Community name</label><input id="cm-name" value={name} maxLength={60} onChange={e=>setName(e.target.value)} disabled={!editor||busy}/>
      <label htmlFor="cm-desc">Description</label><textarea id="cm-desc" rows={5} value={description} maxLength={1000} onChange={e=>setDescription(e.target.value)} placeholder="Describe your ER:LC community" disabled={!editor||busy}/>
