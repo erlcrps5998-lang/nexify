@@ -31,6 +31,8 @@ model Community {
   slug           String          @unique
   description    String?
   logoUrl        String?
+  weeklyShiftQuotaMinutes Int @default(120)
+  shifts Shift[]
   createdAt      DateTime        @default(now())
   createdById    String
   createdBy      User            @relation("CreatedCommunities", fields: [createdById], references: [id])
@@ -47,6 +49,7 @@ model Membership {
   suspendedUntil DateTime?
   suspensionReason String?
   leaveRequests LeaveRequest[]
+  shifts Shift[]
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
@@ -86,4 +89,27 @@ model LeaveRequest {
   reviewedAt DateTime?
 
   @@index([membershipId, createdAt])
+}
+
+model Shift {
+  id           String         @id @default(cuid())
+  communityId  String
+  membershipId String
+  community    Community      @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  membership   Membership     @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  startedAt    DateTime       @default(now())
+  endedAt      DateTime?
+  activities   ShiftActivity[]
+  @@index([communityId, startedAt])
+  @@index([membershipId, endedAt])
+}
+
+model ShiftActivity {
+  id        String   @id @default(cuid())
+  shiftId   String
+  shift     Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+  category  String
+  note      String
+  createdAt DateTime @default(now())
+  @@index([shiftId, createdAt])
 }
