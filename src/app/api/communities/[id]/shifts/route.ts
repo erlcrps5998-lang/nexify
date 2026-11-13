@@ -2,6 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
+import {can,permissionsFor} from '@/lib/permissions';
 type Ctx={params:Promise<{id:string}>};
 const staffRoles=['OWNER','ADMIN','MODERATOR','STAFF'];
 async function getActor(params:Ctx['params']){
@@ -28,7 +29,7 @@ export async function GET(_request:Request,{params}:Ctx){
   const actor=await getActor(params);
   if(!actor)return NextResponse.json({error:'Community access required'},{status:403});
   const {community,membership}=actor;
-  if(!staffRoles.includes(membership.role))return NextResponse.json({error:'Staff role required'},{status:403});
+  if(!(await can(membership,community.id,'shifts.view')))return NextResponse.json({error:'Staff role required'},{status:403});
   const now=new Date(),start=weekStart(now);
   const staff=await prisma.membership.findMany({where:{communityId:community.id,role:{in:['OWNER','ADMIN','MODERATOR','STAFF']}},include:{user:{select:{name:true,avatar:true}}}});
   const shifts=await prisma.shift.findMany({where:{communityId:community.id,OR:[{startedAt:{gte:start}},{endedAt:{gte:start}},{endedAt:null}]},include:{activities:{orderBy:{createdAt:'desc'},take:100}},orderBy:{startedAt:'desc'},take:700});
@@ -47,13 +48,13 @@ export async function GET(_request:Request,{params}:Ctx){
     startedAt:s.startedAt.toISOString(),endedAt:s.endedAt?.toISOString()||null,
     activities:s.activities.map(a=>({id:a.id,category:a.category,note:a.note,createdAt:a.createdAt.toISOString()}))
   }));
-  return NextResponse.json({communityName:community.name,quotaMinutes:community.weeklyShiftQuotaMinutes,weekStarts:start.toISOString(),myRole:membership.role,myActiveShiftId:myActive?.id||null,mySuspended:!!membership.suspendedUntil&&membership.suspendedUntil>now,leaderboard:stats,history});
+  return NextResponse.json({communityName:community.name,quotaMinutes:community.weeklyShiftQuotaMinutes,weekStarts:start.toISOString(),myRole:membership.role,myActiveShiftId:myActive?.id||null,mySuspended:!!membership.suspendedUntil&&membership.suspendedUntil>now,permissions:await permissionsFor(membership,community.id),leaderboard:stats,history});
  }catch{return NextResponse.json({error:'Could not load shifts'},{status:503});}
 }
 export async function POST(req:Request,{params}:Ctx){
  try{
   const actor=await getActor(params);
-  if(!actor||!staffRoles.includes(actor.membership.role))return NextResponse.json({error:'Staff membership required'},{status:403});
+  if(!actor||!(await can(actor.membership,actor.community.id,'shifts.manage')))return NextResponse.json({error:'Staff membership required'},{status:403});
   const {community,membership}=actor;
   if(membership.suspendedUntil&&membership.suspendedUntil>new Date())return NextResponse.json({error:'Your staff access is suspended'},{status:403});
   const body=await req.json() as {action?:unknown;category?:unknown;note?:unknown};
@@ -82,7 +83,7 @@ export async function POST(req:Request,{params}:Ctx){
 export async function PATCH(req:Request,{params}:Ctx){
  try{
   const actor=await getActor(params);
-  if(!actor||!isManager(actor.membership.role))return NextResponse.json({error:'Only owners and admins can set quotas'},{status:403});
+  if(!actor||!(await can(actor.membership,actor.community.id,'shifts.quota')))return NextResponse.json({error:'Only owners and admins can set quotas'},{status:403});
   if(actor.membership.suspendedUntil&&actor.membership.suspendedUntil>new Date())return NextResponse.json({error:'Staff access suspended'},{status:403});
   const body=await req.json() as {quotaMinutes?:unknown};
   if(!Number.isInteger(body?.quotaMinutes)||typeof body.quotaMinutes!=='number'||body.quotaMinutes<0||body.quotaMinutes>10080)return NextResponse.json({error:'Quota must be 0–10080 minutes'},{status:400});
