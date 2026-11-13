@@ -2,6 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
+import {permissionsFor} from '@/lib/permissions';
 
 type Context={params:Promise<{id:string}>};
 type Action='WARNING'|'KICK'|'BAN'|'UNBAN';
@@ -29,9 +30,10 @@ export async function GET(_req:Request,{params}:Context){
   const a=await actor(params);
   if(!a)return NextResponse.json({error:'Community access required'},{status:403});
   const role=a.membership.role as Role;
+  const custom=await permissionsFor(a.membership,a.id);
   if(role==='MEMBER')return NextResponse.json({error:'Staff role required'},{status:403});
   const logs=await prisma.moderationLog.findMany({where:{communityId:a.id},orderBy:{createdAt:'desc'},take:250});
-  return NextResponse.json({role,permissions:permission[role],suspended:!!a.membership.suspendedUntil&&a.membership.suspendedUntil>new Date(),logs:logs.map(log=>({
+  return NextResponse.json({role,permissions:[...(custom.includes('moderation.warn')?['WARNING']:[]),...(custom.includes('moderation.kick')?['KICK']:[]),...(custom.includes('moderation.ban')?['BAN','UNBAN']:[])],suspended:!!a.membership.suspendedUntil&&a.membership.suspendedUntil>new Date(),logs:logs.map(log=>({
    id:log.id,action:log.action,targetRobloxId:log.targetRobloxId,targetRobloxName:log.targetRobloxName,
    reason:log.reason,actorName:log.actorName||'Staff member',createdAt:log.createdAt.toISOString()
   }))});
@@ -46,7 +48,9 @@ export async function POST(req:Request,{params}:Context){
   const body=await req.json() as Record<string,unknown>;
   if(!body||typeof body.action!=='string'||!labels.includes(body.action as Action))return NextResponse.json({error:'Choose a valid moderation action'},{status:400});
   const action=body.action as Action;
-  if(!permission[role].includes(action))return NextResponse.json({error:'Your role cannot record this action'},{status:403});
+  const custom=await permissionsFor(a.membership,a.id);
+  const required=action==='WARNING'?'moderation.warn':action==='KICK'?'moderation.kick':'moderation.ban';
+  if(!custom.includes(required))return NextResponse.json({error:'Your role cannot record this action'},{status:403});
   if(typeof body.targetRobloxId!=='string'||!/^\d{1,20}$/.test(body.targetRobloxId)||!/[1-9]/.test(body.targetRobloxId))return NextResponse.json({error:'Enter a valid numeric Roblox user ID'},{status:400});
   if(typeof body.targetRobloxName!=='string'||body.targetRobloxName.length>50)return NextResponse.json({error:'Roblox username must be at most 50 characters'},{status:400});
   if(typeof body.reason!=='string'||body.reason.trim().length<5||body.reason.length>500)return NextResponse.json({error:'Reason must be 5–500 characters'},{status:400});
