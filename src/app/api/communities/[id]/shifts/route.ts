@@ -31,7 +31,7 @@ export async function GET(_request:Request,{params}:Ctx){
   const {community,membership}=actor;
   if(!(await can(membership,community.id,'shifts.view')))return NextResponse.json({error:'Staff role required'},{status:403});
   const now=new Date(),start=weekStart(now);
-  const staff=await prisma.membership.findMany({where:{communityId:community.id,role:{in:['OWNER','ADMIN','MODERATOR','STAFF']}},include:{user:{select:{name:true,avatar:true}}}});
+  const staff=await prisma.membership.findMany({where:{communityId:community.id,OR:[{role:{not:'MEMBER'}},{rankId:{not:null}}]},include:{user:{select:{name:true,avatar:true}}}});
   const shifts=await prisma.shift.findMany({where:{communityId:community.id,OR:[{startedAt:{gte:start}},{endedAt:{gte:start}},{endedAt:null}]},include:{activities:{orderBy:{createdAt:'desc'},take:100}},orderBy:{startedAt:'desc'},take:700});
   const stats=staff.map(m=>{
    const related=shifts.filter(s=>s.membershipId===m.id);
