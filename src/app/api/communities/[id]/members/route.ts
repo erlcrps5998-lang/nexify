@@ -17,7 +17,7 @@ async function auth(params:Ctx['params']){
  if(!member)return null;
  return {id,member};
 }
-function allowed(actor:Role,role:Role){return actor==='OWNER'?role!=='OWNER':actor==='ADMIN'&&['MODERATOR','STAFF','MEMBER'].includes(role);}
+function allowed(actor:Role,role:Role){const levels:Record<Role,number>={OWNER:5,ADMIN:4,MODERATOR:3,STAFF:2,MEMBER:1};return role!=='OWNER'&&levels[role]<=levels[actor]&&(actor!=='MEMBER'||role==='MEMBER')&&(actor!=='ADMIN'||role!=='ADMIN');}
 async function list(id:string){
  const members=await prisma.membership.findMany({where:{communityId:id},include:{user:{select:{id:true,discordId:true,name:true,avatar:true}}},orderBy:{user:{name:'asc'}}});
  return members.map(m=>({id:m.id,role:m.role,user:m.user}));
@@ -47,7 +47,7 @@ export async function PATCH(req:Request,{params}:Ctx){
   const {membershipId,role}=await req.json();
   if(typeof membershipId!=='string'||!roles.includes(role)||!allowed(c.member.role,role))return NextResponse.json({error:'Invalid role or membership'},{status:400});
   const target=await prisma.membership.findFirst({where:{id:membershipId,communityId:c.id}});
-  if(!target||!allowed(c.member.role,target.role))return NextResponse.json({error:'Cannot edit this member'},{status:403});
+  if(!target||target.id===c.member.id||!allowed(c.member.role,target.role))return NextResponse.json({error:'Cannot edit this member'},{status:403});
   await prisma.membership.update({where:{id:target.id},data:{role}});
   return NextResponse.json(await list(c.id));
  }catch{return NextResponse.json({error:'Unable to update member'},{status:503});}
@@ -59,7 +59,7 @@ export async function DELETE(req:Request,{params}:Ctx){
   const {membershipId}=await req.json();
   if(typeof membershipId!=='string')return NextResponse.json({error:'Invalid member'},{status:400});
   const target=await prisma.membership.findFirst({where:{id:membershipId,communityId:c.id}});
-  if(!target||!allowed(c.member.role,target.role))return NextResponse.json({error:'Cannot remove this member'},{status:403});
+  if(!target||target.id===c.member.id||!allowed(c.member.role,target.role))return NextResponse.json({error:'Cannot remove this member'},{status:403});
   await prisma.membership.delete({where:{id:target.id}});
   return NextResponse.json(await list(c.id));
  }catch{return NextResponse.json({error:'Unable to remove member'},{status:503});}
