@@ -5,7 +5,7 @@ import {useParams} from 'next/navigation';
 import {useEffect,useState} from 'react';
 type Role='OWNER'|'ADMIN'|'MODERATOR'|'STAFF'|'MEMBER';
 type Staff={id:string;name:string;discordId:string;avatar:string|null;role:Role;title:string;suspendedUntil:string|null;suspensionReason:string};
-type Overview={staff:Staff[];myMembershipId:string;myRole:Role;mySuspended:boolean};
+type Overview={staff:Staff[];myMembershipId:string;myRole:Role;permissions:string[];mySuspended:boolean};
 type Leave={id:string;membershipId:string;name:string;role:Role;startDate:string;endDate:string;reason:string;status:'PENDING'|'APPROVED'|'DENIED'|'CANCELLED';reviewerNote:string;createdAt:string};
 async function parse(response:Response){const value=await response.json();if(!response.ok)throw new Error(value.error||'Request failed');return value;}
 function dateOnly(s:string){return s.slice(0,10);}
@@ -22,9 +22,10 @@ export default function StaffPage(){
   setInfo(staff);setLeaves(loa);
  }
  useEffect(()=>{if(!id)return;refresh().catch(e=>setError(e.message)).finally(()=>setLoading(false));},[id]);
- const manager=info?.myRole==='OWNER'||info?.myRole==='ADMIN';
+ const manager=!!info?.permissions.includes('staff.manage');
+ const reviewer=!!info?.permissions.includes('loa.review');
  const canManage=(m:Staff)=>Boolean(manager&&!info?.mySuspended&&m.id!==info?.myMembershipId&&(info?.myRole==='OWNER'?m.role!=='OWNER':['MODERATOR','STAFF'].includes(m.role)));
- const canReview=(l:Leave)=>Boolean(manager&&!info?.mySuspended&&l.membershipId!==info?.myMembershipId&&(info?.myRole==='OWNER'||!['OWNER','ADMIN'].includes(l.role)));
+ const canReview=(l:Leave)=>Boolean(reviewer&&!info?.mySuspended&&l.membershipId!==info?.myMembershipId&&(info?.myRole==='OWNER'||!['OWNER','ADMIN'].includes(l.role)));
  const today=new Date().toISOString().slice(0,10);
  async function saveStaff(m:Staff){
   setBusy(true);setError('');setSuccess('');
@@ -64,7 +65,7 @@ export default function StaffPage(){
     <section className="panel cm-panel"><h2>Request leave of absence</h2><p>Submit an LOA for a manager to review. Requests can cover up to 90 days.</p>
      {info.myRole==='MEMBER'?<p>Staff access is required to request leave.</p>:<><label htmlFor="leave-start">Start date</label><input id="leave-start" type="date" min={today} value={start} onChange={e=>setStart(e.target.value)}/><label htmlFor="leave-end">End date</label><input id="leave-end" type="date" min={start||today} value={end} onChange={e=>setEnd(e.target.value)}/><label htmlFor="leave-reason">Reason</label><textarea id="leave-reason" rows={4} maxLength={500} value={leaveReason} onChange={e=>setLeaveReason(e.target.value)} placeholder="Explain the time off you are requesting"/><button className="cm-button" disabled={busy||!start||!end||leaveReason.trim().length<5} onClick={requestLeave}>Submit LOA request</button></>}
     </section>
-    <section className="panel cm-panel"><h2>{manager?'Leave requests & approvals':'My leave requests'}</h2><p>{manager?'Review staff requests. You cannot approve your own LOA.':'Track your requests and their approval status.'}</p>
+    <section className="panel cm-panel"><h2>{reviewer?'Leave requests & approvals':'My leave requests'}</h2><p>{reviewer?'Review staff requests. You cannot approve your own LOA.':'Track your requests and their approval status.'}</p>
      <div className="staff-rows">{leaves.map(l=><div className="staff-leave" key={l.id}><div className="staff-leave-top"><strong>{l.name}</strong><span className={'staff-state '+(l.status==='DENIED'?'suspended':'')}>{l.status}</span></div><small>{dateOnly(l.startDate)} through {dateOnly(l.endDate)} · {l.role}</small><p>{l.reason}</p>{l.reviewerNote&&<small>Manager note: {l.reviewerNote}</small>}
       {l.status==='PENDING'&&canReview(l)&&<><textarea rows={2} value={reviewNotes[l.id]||''} maxLength={500} onChange={e=>setReviewNotes(v=>({...v,[l.id]:e.target.value}))} placeholder="Optional review note"/><div className="staff-actions"><button className="cm-button" disabled={busy} onClick={()=>updateLeave(l,'APPROVED')}>Approve</button><button className="cm-remove" disabled={busy} onClick={()=>updateLeave(l,'DENIED')}>Deny</button></div></>}
       {l.status==='PENDING'&&l.membershipId===info.myMembershipId&&<button className="staff-mutedbtn" disabled={busy} onClick={()=>updateLeave(l,'CANCELLED')}>Cancel request</button>}
