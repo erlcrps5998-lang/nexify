@@ -23,6 +23,7 @@ model User {
   createdAt          DateTime     @default(now())
   memberships        Membership[]
   createdCommunities Community[]  @relation("CreatedCommunities")
+  applications ApplicationSubmission[]
 }
 
 model Community {
@@ -38,6 +39,7 @@ model Community {
   createdBy      User            @relation("CreatedCommunities", fields: [createdById], references: [id])
   members        Membership[]
   moderationLogs ModerationLog[]
+  applicationForms ApplicationForm[]
 }
 
 model Membership {
@@ -114,4 +116,44 @@ model ShiftActivity {
   note      String
   createdAt DateTime @default(now())
   @@index([shiftId, createdAt])
+}
+
+enum ApplicationStatus {
+  PENDING
+  UNDER_REVIEW
+  ACCEPTED
+  DENIED
+}
+
+model ApplicationForm {
+  id          String                  @id @default(cuid())
+  communityId String
+  community   Community               @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  isOpen      Boolean                 @default(false)
+  questions   Json
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+  submissions ApplicationSubmission[]
+
+  @@index([communityId, createdAt])
+}
+
+model ApplicationSubmission {
+  id           String            @id @default(cuid())
+  formId       String
+  form         ApplicationForm   @relation(fields: [formId], references: [id], onDelete: Cascade)
+  applicantId  String
+  applicant    User              @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  answers      Json
+  questionSnapshot Json
+  status       ApplicationStatus @default(PENDING)
+  reviewerNote String?
+  reviewerName String?
+  submittedAt  DateTime          @default(now())
+  reviewedAt   DateTime?
+
+  @@unique([formId, applicantId])
+  @@index([formId, submittedAt])
 }
