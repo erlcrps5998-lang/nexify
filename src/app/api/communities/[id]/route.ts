@@ -24,7 +24,7 @@ export async function GET(_req:Request,{params}:Ctx){
 export async function PATCH(req:Request,{params}:Ctx){
  try{
   const {id}=await params;const member=await auth(id);
-  if(!member||!['OWNER','ADMIN'].includes(member.role))return NextResponse.json({error:'Only owners and admins can edit settings'},{status:403});
+  if(!member||!['OWNER','ADMIN'].includes(member.role)||(member.suspendedUntil&&member.suspendedUntil>new Date()))return NextResponse.json({error:'Only owners and admins can edit settings'},{status:403});
   const body=await req.json() as Record<string,unknown>;
   if(!body||typeof body.name!=='string'||body.name.trim().length<3||body.name.trim().length>60)return NextResponse.json({error:'Name must be 3–60 characters'},{status:400});
   if(typeof body.description!=='string'||body.description.length>1000)return NextResponse.json({error:'Description must be 1000 characters or fewer'},{status:400});
