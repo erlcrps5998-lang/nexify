@@ -1,44 +1,62 @@
-generator client { provider = "prisma-client-js" }
-datasource db { provider = "postgresql" url = env("DATABASE_URL") }
-
-enum CommunityRole { OWNER ADMIN MODERATOR STAFF MEMBER }
-model User {
-  id String @id @default(cuid())
-  discordId String @unique
-  name String
-  avatar String?
-  createdAt DateTime @default(now())
-  memberships Membership[]
-  createdCommunities Community[] @relation("CreatedCommunities")
+generator client {
+  provider = "prisma-client-js"
 }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CommunityRole {
+  OWNER
+  ADMIN
+  MODERATOR
+  STAFF
+  MEMBER
+}
+
+model User {
+  id                 String       @id @default(cuid())
+  discordId          String       @unique
+  name               String
+  avatar             String?
+  createdAt          DateTime     @default(now())
+  memberships        Membership[]
+  createdCommunities Community[]  @relation("CreatedCommunities")
+}
+
 model Community {
-  id String @id @default(cuid())
-  name String
-  slug String @unique
-  description String?
-  createdAt DateTime @default(now())
-  createdById String
-  createdBy User @relation("CreatedCommunities", fields: [createdById], references: [id])
-  members Membership[]
+  id             String          @id @default(cuid())
+  name           String
+  slug           String          @unique
+  description    String?
+  createdAt      DateTime        @default(now())
+  createdById    String
+  createdBy      User            @relation("CreatedCommunities", fields: [createdById], references: [id])
+  members        Membership[]
   moderationLogs ModerationLog[]
 }
+
 model Membership {
-  id String @id @default(cuid())
-  userId String
+  id          String        @id @default(cuid())
+  userId      String
   communityId String
-  role CommunityRole @default(MEMBER)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  role        CommunityRole @default(MEMBER)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
   @@unique([userId, communityId])
 }
+
 model ModerationLog {
-  id String @id @default(cuid())
-  communityId String
-  actorId String
+  id             String    @id @default(cuid())
+  communityId    String
+  actorId        String
   targetRobloxId String
-  action String
-  reason String?
-  createdAt DateTime @default(now())
-  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  action         String
+  reason         String?
+  createdAt      DateTime  @default(now())
+  community      Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
   @@index([communityId, createdAt])
 }
