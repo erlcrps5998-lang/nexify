@@ -43,6 +43,10 @@ model Membership {
   userId      String
   communityId String
   role        CommunityRole @default(MEMBER)
+  staffTitle  String?
+  suspendedUntil DateTime?
+  suspensionReason String?
+  leaveRequests LeaveRequest[]
   user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   community   Community     @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
@@ -60,4 +64,26 @@ model ModerationLog {
   community      Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
 
   @@index([communityId, createdAt])
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+model LeaveRequest {
+  id String @id @default(cuid())
+  membershipId String
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate DateTime
+  reason String
+  status LeaveStatus @default(PENDING)
+  reviewerNote String?
+  createdAt DateTime @default(now())
+  reviewedAt DateTime?
+
+  @@index([membershipId, createdAt])
 }
