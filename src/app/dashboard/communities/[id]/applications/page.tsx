@@ -9,7 +9,7 @@ type Kind='SHORT'|'LONG'|'SELECT'|'CHECKBOX';
 type Question={id:string;label:string;type:Kind;required:boolean;options:string[]};
 type Form={id:string;title:string;description:string|null;isOpen:boolean;questions:Question[];count?:number};
 type Submission={id:string;name:string;discordId?:string;status:string;answers:Record<string,string|string[]>;questionSnapshot:Question[];reviewerNote:string|null;reviewerName:string|null;submittedAt:string};
-type Listing={communityName:string;manager:boolean;authenticated:boolean;forms:Form[]};
+type Listing={communityName:string;manager:boolean;reviewer:boolean;authenticated:boolean;forms:Form[]};
 const emptyQuestion=():Question=>({id:'q_'+Math.random().toString(36).slice(2,12),label:'',type:'SHORT',required:true,options:[]});
 async function parse(r:Response){const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');return d;}
 export default function ApplicationsPage(){
@@ -44,7 +44,7 @@ export default function ApplicationsPage(){
   try{await fetch(base+'/submissions',{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify({submissionId,status,reviewerNote:reviewNotes[submissionId]||''})}).then(parse);await fetchSubmissions(selected);setNotice('Hiring decision saved.');}catch(e){setError(e instanceof Error?e.message:'Unable to review');}finally{setBusy(false);}
  }
  const form=data?.forms.find(f=>f.id===selected);
- const mySubmission=!data?.manager?submissions[0]:null;
+ const mySubmission=!data?.reviewer?submissions[0]:null;
  return <div className="app"><NexifySidebar communityId={id}/><main className="cm-page cm-content"><div className="cm-container">
   <Link href={'/dashboard/communities/'+id} className="cm-back">← Back to community</Link>
   <header className="cm-hero"><div className="cm-logo"><ClipboardList size={38}/></div><div><span className="muted">NEXIFY / RECRUITMENT</span><h1>Application Center</h1><p>Custom forms, questions, submissions and hiring decisions</p></div></header>
@@ -52,7 +52,7 @@ export default function ApplicationsPage(){
    <nav className="app-tabs" aria-label="Application sections">
     <button className={tab==='forms'?'selected':''} onClick={()=>setTab('forms')}>Applications</button>
     <button className={tab==='apply'?'selected':''} onClick={()=>setTab('apply')}>Apply</button>
-    {data.manager&&<button className={tab==='review'?'selected':''} onClick={()=>setTab('review')}>Review Submissions</button>}
+    {data.reviewer&&<button className={tab==='review'?'selected':''} onClick={()=>setTab('review')}>Review Submissions</button>}
    </nav>
    {tab==='forms'&&<div className="application-grid">
     <section className="panel cm-panel"><h2>Community applications</h2><p>Choose a form. Managers can create, edit and open or close applications.</p>
@@ -89,7 +89,7 @@ export default function ApplicationsPage(){
       <button className="cm-button" disabled={!form.isOpen||!data.authenticated||!!mySubmission||busy} onClick={submit}>{busy?'Submitting…':'Submit application'}</button>
      </>}
    </section>}
-   {tab==='review'&&data.manager&&<section className="panel cm-panel"><h2>Application review queue</h2><p>Review responses, leave notes, and mark candidates Under Review, Accepted, or Denied. Accepting does not automatically add them to staff.</p>
+   {tab==='review'&&data.reviewer&&<section className="panel cm-panel"><h2>Application review queue</h2><p>Review responses, leave notes, and mark candidates Under Review, Accepted, or Denied. Accepting does not automatically add them to staff.</p>
     <label htmlFor="review-form">Application form</label><select id="review-form" value={selected} onChange={e=>setSelected(e.target.value)}>{data.forms.map(f=><option key={f.id} value={f.id}>{f.title}</option>)}</select>
     <div className="app-review-list">{submissions.map(s=><article key={s.id} className="app-review-card"><div className="app-review-head"><div><strong>{s.name}</strong><small>Discord ID: {s.discordId} · {new Date(s.submittedAt).toLocaleString()}</small></div><span className="pill">{s.status.replace('_',' ')}</span></div>
       <button className="staff-mutedbtn" onClick={()=>setExpanded(expanded===s.id?null:s.id)}>{expanded===s.id?'Hide answers':'Review answers'}</button>
