@@ -1,6 +1,7 @@
 import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {prisma} from '@/lib/prisma';
+import {can} from '@/lib/permissions';
 import {authOptions} from '@/lib/auth';
 type Ctx={params:Promise<{id:string}>};
 async function actor(params:Ctx['params']){
@@ -13,17 +14,17 @@ async function actor(params:Ctx['params']){
  const membership=await prisma.membership.findUnique({where:{userId_communityId:{userId:user.id,communityId:id}}});
  return membership?{id,membership}:null;
 }
-const manager=(role:string)=>role==='OWNER'||role==='ADMIN';
-async function getRequests(id:string,viewer:{id:string;role:string}){
+
+async function getRequests(id:string,viewer:{id:string;role:string;reviewer:boolean}){
  const requests=await prisma.leaveRequest.findMany({
-  where:{membership:{communityId:id},...(manager(viewer.role)?{}:{membershipId:viewer.id})},
+  where:{membership:{communityId:id},...(viewer.reviewer?{}:{membershipId:viewer.id})},
   include:{membership:{include:{user:{select:{name:true,discordId:true}}}}},
   orderBy:{createdAt:'desc'},take:150
  });
  return requests.map(r=>({id:r.id,membershipId:r.membershipId,name:r.membership.user.name,role:r.membership.role,startDate:r.startDate.toISOString(),endDate:r.endDate.toISOString(),reason:r.reason,status:r.status,reviewerNote:r.reviewerNote||'',createdAt:r.createdAt.toISOString()}));
 }
 export async function GET(_req:Request,{params}:Ctx){
- try{const a=await actor(params);if(!a)return NextResponse.json({error:'Access denied'},{status:403});return NextResponse.json(await getRequests(a.id,a.membership));}
+ try{const a=await actor(params);if(!a)return NextResponse.json({error:'Access denied'},{status:403});return NextResponse.json(await getRequests(a.id,{...a.membership,reviewer:await can(a.membership,a.id,'loa.review')}));}
  catch{return NextResponse.json({error:'Unable to load LOAs'},{status:503});}
 }
 export async function POST(req:Request,{params}:Ctx){
@@ -39,7 +40,7 @@ export async function POST(req:Request,{params}:Ctx){
   const pending=await prisma.leaveRequest.count({where:{membershipId:a.membership.id,status:'PENDING'}});
   if(pending>=5)return NextResponse.json({error:'You already have five pending LOA requests'},{status:409});
   await prisma.leaveRequest.create({data:{membershipId:a.membership.id,startDate:start,endDate:end,reason:reason.trim()}});
-  return NextResponse.json(await getRequests(a.id,a.membership),{status:201});
+  return NextResponse.json(await getRequests(a.id,{...a.membership,reviewer:await can(a.membership,a.id,'loa.review')}),{status:201});
  }catch{return NextResponse.json({error:'Unable to request leave'},{status:503});}
 }
 export async function PATCH(req:Request,{params}:Ctx){
@@ -54,11 +55,11 @@ export async function PATCH(req:Request,{params}:Ctx){
   if(status==='CANCELLED'){
     if(request.membershipId!==a.membership.id)return NextResponse.json({error:'Only the requester can cancel their LOA'},{status:403});
   }else if(status==='APPROVED'||status==='DENIED'){
-    if(!manager(a.membership.role)||request.membershipId===a.membership.id)return NextResponse.json({error:'Managers cannot approve their own requests'},{status:403});
-    if(a.membership.role==='ADMIN'&&['OWNER','ADMIN'].includes(request.membership.role))return NextResponse.json({error:'Only the owner can review admin leave'},{status:403});
+    if(!(await can(a.membership,a.id,'loa.review'))||request.membershipId===a.membership.id)return NextResponse.json({error:'Managers cannot approve their own requests'},{status:403});
+    if(a.membership.role!=='OWNER'&&['OWNER','ADMIN'].includes(request.membership.role))return NextResponse.json({error:'Only the owner can review admin leave'},{status:403});
   }else return NextResponse.json({error:'Invalid status'},{status:400});
   const result=await prisma.leaveRequest.updateMany({where:{id:requestId,status:'PENDING'},data:{status:status as 'APPROVED'|'DENIED'|'CANCELLED',reviewerNote:reviewerNote.trim()||null,reviewedAt:new Date()}});
   if(result.count!==1)return NextResponse.json({error:'Request already changed'},{status:409});
-  return NextResponse.json(await getRequests(a.id,a.membership));
+  return NextResponse.json(await getRequests(a.id,{...a.membership,reviewer:await can(a.membership,a.id,'loa.review')}));
  }catch{return NextResponse.json({error:'Unable to update leave request'},{status:503});}
 }
