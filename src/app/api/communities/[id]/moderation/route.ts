@@ -31,7 +31,7 @@ export async function GET(_req:Request,{params}:Context){
   if(!a)return NextResponse.json({error:'Community access required'},{status:403});
   const role=a.membership.role as Role;
   const custom=await permissionsFor(a.membership,a.id);
-  if(role==='MEMBER')return NextResponse.json({error:'Staff role required'},{status:403});
+  if(!custom.some(k=>k.startsWith('moderation.')))return NextResponse.json({error:'Moderation permission required'},{status:403});
   const logs=await prisma.moderationLog.findMany({where:{communityId:a.id},orderBy:{createdAt:'desc'},take:250});
   return NextResponse.json({role,permissions:[...(custom.includes('moderation.warn')?['WARNING']:[]),...(custom.includes('moderation.kick')?['KICK']:[]),...(custom.includes('moderation.ban')?['BAN','UNBAN']:[])],suspended:!!a.membership.suspendedUntil&&a.membership.suspendedUntil>new Date(),logs:logs.map(log=>({
    id:log.id,action:log.action,targetRobloxId:log.targetRobloxId,targetRobloxName:log.targetRobloxName,
