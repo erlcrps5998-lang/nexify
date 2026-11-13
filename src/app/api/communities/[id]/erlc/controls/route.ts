@@ -3,6 +3,7 @@ import {NextResponse} from 'next/server';
 import {prisma} from '@/lib/prisma';
 import {authOptions} from '@/lib/auth';
 import {decryptServerKey} from '@/lib/erlc';
+import {permissionsFor} from '@/lib/permissions';
 
 export const runtime='nodejs';
 type Ctx={params:Promise<{id:string}>};
@@ -30,11 +31,14 @@ const fail=(message:string,status:number)=>NextResponse.json({error:message},{st
 export async function GET(_request:Request,{params}:Ctx){
  try{
   const a=await actor(params);
-  if(!a||a.suspended||a.membership.role==='MEMBER')return fail('Active community staff membership required',403);
+  if(!a||a.suspended)return fail('Active community staff membership required',403);
+  const permitted=await permissionsFor(a.membership,a.id);
+  const commandPermissions=(['ANNOUNCE','MESSAGE','PM','KICK','BAN','UNBAN'] as Action[]).filter(x=>permitted.includes(('erlc.'+x.toLowerCase()) as never));
+  if(!commandPermissions.length)return fail('You have no server command permissions',403);
   const connection=await prisma.erlcConnection.findUnique({where:{communityId:a.id},select:{id:true,serverName:true}});
   const logs=await prisma.erlcCommandLog.findMany({where:{communityId:a.id},orderBy:{createdAt:'desc'},take:100,
    select:{id:true,actorName:true,actorRole:true,action:true,target:true,status:true,response:true,createdAt:true,completedAt:true}});
-  return NextResponse.json({connected:!!connection,serverName:connection?.serverName||null,role:a.membership.role,permissions:permissions[a.membership.role],logs:logs.map(l=>({...l,createdAt:l.createdAt.toISOString(),completedAt:l.completedAt?.toISOString()||null}))});
+  return NextResponse.json({connected:!!connection,serverName:connection?.serverName||null,role:a.membership.role,permissions:commandPermissions,logs:logs.map(l=>({...l,createdAt:l.createdAt.toISOString(),completedAt:l.completedAt?.toISOString()||null}))});
  }catch{return fail('Could not load command controls',503);}
 }
 function commandFor(action:Action,target:unknown,message:unknown){
@@ -65,7 +69,7 @@ export async function POST(req:Request,{params}:Ctx){
   const body=await req.json() as Record<string,unknown>;
   if(!body||typeof body.action!=='string'||!allowedActions.includes(body.action))return fail('Choose an allowed command type',400);
   const action=body.action as Action;
-  if(!permissions[role].includes(action))return fail('You do not have permission for this command',403);
+  if(!(await permissionsFor(a.membership,a.id)).includes(('erlc.'+action.toLowerCase()) as never))return fail('You do not have permission for this command',403);
   const payload=commandFor(action,body.target,body.message);
   if(!payload)return fail('Enter a valid player username and/or message',400);
   const connection=await prisma.erlcConnection.findUnique({where:{communityId:a.id}});
