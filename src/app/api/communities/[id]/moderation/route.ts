@@ -47,7 +47,7 @@ export async function POST(req:Request,{params}:Context){
   if(!body||typeof body.action!=='string'||!labels.includes(body.action as Action))return NextResponse.json({error:'Choose a valid moderation action'},{status:400});
   const action=body.action as Action;
   if(!permission[role].includes(action))return NextResponse.json({error:'Your role cannot record this action'},{status:403});
-  if(typeof body.targetRobloxId!=='string'||!/^\d{1,20}$/.test(body.targetRobloxId)||BigInt(body.targetRobloxId)===0n)return NextResponse.json({error:'Enter a valid numeric Roblox user ID'},{status:400});
+  if(typeof body.targetRobloxId!=='string'||!/^\d{1,20}$/.test(body.targetRobloxId)||!/[1-9]/.test(body.targetRobloxId))return NextResponse.json({error:'Enter a valid numeric Roblox user ID'},{status:400});
   if(typeof body.targetRobloxName!=='string'||body.targetRobloxName.length>50)return NextResponse.json({error:'Roblox username must be at most 50 characters'},{status:400});
   if(typeof body.reason!=='string'||body.reason.trim().length<5||body.reason.length>500)return NextResponse.json({error:'Reason must be 5–500 characters'},{status:400});
   const saved=await prisma.moderationLog.create({data:{
