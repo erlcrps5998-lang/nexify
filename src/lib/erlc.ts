@@ -68,7 +68,7 @@ export async function fetchErlcServer(key:string){
  const queue=Array.isArray(q)?q.length:num(q)??(Array.isArray(asObject(q).Players)?(asObject(q).Players as unknown[]).length:0);
  const staff=pick(root,'Staff','staff');
  const staffObject=asObject(staff);
- const staffCount=Array.isArray(staff)?staff.length:Object.values(staffObject).reduce((sum,v)=>sum+(Array.isArray(v)?v.length:0),0);
+ const staffCount=Array.isArray(staff)?staff.length:Object.values(staffObject).reduce<number>((sum,v)=>sum+(Array.isArray(v)?v.length:0),0);
  const name=str(pick(info,'Name','name','ServerName','serverName'))||'ER:LC Private Server';
  return {name,owner:str(pick(info,'Owner','OwnerId','owner','ownerId')),
   playerCount:num(pick(info,'CurrentPlayers','PlayerCount','currentPlayers'))??players.length,
