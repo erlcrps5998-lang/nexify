@@ -7,7 +7,7 @@ import type {Prisma} from '@prisma/client';
 type Ctx={params:Promise<{id:string}>};
 type Question={id:string;label:string;type:'SHORT'|'LONG'|'SELECT'|'CHECKBOX';required:boolean;options:string[]};
 const kinds=['SHORT','LONG','SELECT','CHECKBOX'];
-export async function appActor(params:Ctx['params']){
+async function appActor(params:Ctx['params']){
  const session=await getServerSession(authOptions);
  const discordId=(session?.user as {discordId?:string}|undefined)?.discordId;
  const {id}=await params;
@@ -57,4 +57,4 @@ export async function PATCH(req:Request,{params}:Ctx){
   return NextResponse.json({success:true});
  }catch{return NextResponse.json({error:'Unable to update application'},{status:503});}
 }
-export {validQuestions};
+
