@@ -27,11 +27,10 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   {label:'LOA Requests',href:staff?staff+'#loa-requests':null,icon:CalendarDays},
   {label:'Shift Management',href:base?base+'/shifts':null,icon:Clock3},
   {label:'Moderation',href:base?base+'/moderation':null,icon:ShieldCheck},
-  {label:'Applications',href:base?base+'/applications':null,icon:ClipboardList}
+  {label:'Applications',href:base?base+'/applications':null,icon:ClipboardList},
+  {label:'ER:LC Servers',href:base?base+'/erlc':null,icon:RadioTower}
  ];
- const coming=[
-  {label:'ER:LC Servers',icon:RadioTower}
- ];
+ const coming: {label:string;icon:typeof RadioTower}[]=[];
  function active(href:string|null,label:string){
   if(!href)return false;
   if(label==='Overview')return pathname==='/dashboard';
@@ -39,6 +38,7 @@ export function NexifySidebar({communityId}:{communityId?:string}){
   if(label==='Shift Management')return pathname===base+'/shifts';
   if(label==='Moderation')return pathname===base+'/moderation';
   if(label==='Applications')return pathname===base+'/applications';
+  if(label==='ER:LC Servers')return pathname===base+'/erlc';
   return pathname===staff;
  }
  return <><button className="sidebar-mobile-toggle" onClick={()=>setOpen(v=>!v)} aria-expanded={open} aria-controls="nexify-navigation">☰ Menu <ChevronDown size={14}/></button>
@@ -52,7 +52,7 @@ export function NexifySidebar({communityId}:{communityId?:string}){
    </select>
    <nav aria-label="Nexify navigation" className="sidebar-nav">
     {links.map(item=>item.href?<Link key={item.label} href={item.href} onClick={()=>setOpen(false)} className={'sideitem sidebar-link'+(active(item.href,item.label)?' active':'')}><item.icon size={17}/><span>{item.label}</span></Link>:<span key={item.label} className="sideitem sidebar-unavailable" title="Create or select a community first"><item.icon size={17}/><span>{item.label}</span></span>)}
-    <div className="sidecaption">COMING SOON</div>
+    {coming.length>0&&<div className="sidecaption">COMING SOON</div>}
     {coming.map(item=><span key={item.label} className="sideitem sidebar-unavailable" title="Coming soon"><item.icon size={17}/><span>{item.label}</span><small>Soon</small></span>)}
    </nav>
    <div className="sidebarbottom"><Link href="/dashboard" className="sidebar-home"><House size={15}/> All communities</Link><p>NEXIFY · EARLY ACCESS</p></div>
