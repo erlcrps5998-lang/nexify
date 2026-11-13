@@ -2,6 +2,7 @@ import {getServerSession} from 'next-auth';
 import {NextResponse} from 'next/server';
 import {authOptions} from '@/lib/auth';
 import {prisma} from '@/lib/prisma';
+import {can} from '@/lib/permissions';
 import type {Prisma} from '@prisma/client';
 
 type Ctx={params:Promise<{id:string}>};
@@ -15,7 +16,7 @@ async function appActor(params:Ctx['params']){
  if(!community)return {community:null,user:null,member:null,manager:false};
  const user=discordId?await prisma.user.upsert({where:{discordId},update:{name:session?.user?.name||'Discord user',avatar:session?.user?.image},create:{discordId,name:session?.user?.name||'Discord user',avatar:session?.user?.image}}):null;
  const member=user?await prisma.membership.findUnique({where:{userId_communityId:{userId:user.id,communityId:id}}}):null;
- const manager=!!member&&['OWNER','ADMIN'].includes(member.role)&&(!member.suspendedUntil||member.suspendedUntil<=new Date());
+ const manager=!!member&&await can(member,id,'applications.manage');
  return {community,user,member,manager};
 }
 function validQuestions(value:unknown):value is Question[]{
